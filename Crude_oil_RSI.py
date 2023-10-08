@@ -24,11 +24,9 @@ import matplotlib.pyplot as plt
 """
 Somehow all open ietrest change comming out to be negetive. 
 """
-with open("enctoken.txt") as f:
-    enctoken = f.read()
-#print(enctoken)
+enctoken = get_enctoken()
 kite = KiteApp(enctoken=enctoken)
-
+print("Session started---------------------")
 
 
 
