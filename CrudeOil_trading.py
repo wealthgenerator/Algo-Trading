@@ -36,7 +36,7 @@ enctoken = get_enctoken()
 kite = KiteApp(enctoken=enctoken)
 print("Session started---------------------")
 
-stock="CRUDEOILM";  Month = "NOV"; algo=2; inter = 2; lot_size = 2; exc = "MCX"; year=23;  interval = "%sminute"%inter
+stock="CRUDEOILM";  Month = "NOV"; algo=2; inter = 10; lot_size = 2; exc = "MCX"; year=23;  interval = "%sminute"%inter;days = 10
 
 file_name = "%s_%s_algo%s.csv"%(stock,Month,algo)
 if path.exists(file_name)==False:
@@ -45,7 +45,10 @@ if path.exists(file_name)==False:
     l=0
 else: 
     dfm = pd.read_csv(file_name)
-    l = 0 if dfm["status"].values[-1] != "exit" else 1
+    #print(dfm["status"].values)
+    if len(dfm["status"].values) ==0: l = 0
+    elif dfm["status"].values[-1] != "exit": l = 0
+    else: l=1
     
     
 index = month_list.index(Month); N_Month = month_list[index+1 if (index+1)<=11 else (index+1)-12]
@@ -58,12 +61,12 @@ if now_month != Month: max_ = 50 + int(today[2])-20 # as contcat endaround 20 th
 else:    max_ = 50+10+int(today[2])
 
    
-data_list = [Month, N_Month];days = 4
+data_list = [Month, N_Month]
 year_list = [year, year if (index+1)<=11 else year+1]
 
 instrument = "%s:%s%s%sFUT"%(exc,stock,year_list[0],data_list[0]); response = kite.ltp(instrument)[instrument]; instrument_token = response['instrument_token']
 N_instrument = "%s:%s%s%sFUT"%(exc,stock,year_list[1],data_list[1]); N_response = kite.ltp(N_instrument)[N_instrument]; N_instrument_token = N_response['instrument_token']
-
+instrument1 = "%s%s%sFUT"%(stock,year_list[0],data_list[0])
 while True:
 #if m==0:
     to_date = datetime.now(timezone("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S"); minute= int(to_date.split(":")[1]); second= int(to_date.split(":")[2]);
@@ -90,26 +93,26 @@ while True:
     SMA10 = premium.rolling(10).mean()
 
     
-    save_into_the_file(dfm,file_name,date,current_close,SMA10,SMA20,"BUY",lot_size,premium)
+    #save_into_the_file(dfm,file_name,date,current_close,SMA10,SMA20,"BUY",lot_size,premium)
     open_premium = 0.0; close_premium = 0.0
     total_profit = 0.0; total_number_trade = 0; above = 1
-    
+    print("ALGO=%s on %s with current_close[i]=%s and  premium[i]=%s, SMA20=%s, SMA10=%s"%(algo, date.values[-1], current_close.values[-1], premium.values[-1],SMA20.values[-1], SMA10.values[-1]))
     
     if algo == 2:
         # SELL the the contract when premium is above 140 and SMA10 is lower than SMA20 of 15 minute cancle close
         # And buy the contract when MA20[i]<SMA10[i] and premium[i]<90
-        if SMA20.values[-1]>SMA10.values[-1] and premium.values[-1]<140 :
+        if SMA20.values[-1]>SMA10.values[-1] and premium.values[-1]>140 :
             if l==0: # l=0 means there is no exting postion already
                 open_premium = current_close.values[-1] 
                 print("SOLD contract on %s with current_close[i]=%s and  premium[i]=%s"%( date.values[-1], current_close.values[-1], premium.values[-1]))
-                order_id = my_job_Market(instrument,exc,"SHOT",lot_size,kite) 
+                order_id = my_job_Market(instrument1,exc,"SHOT",lot_size,kite) 
                 save_into_the_file(dfm,file_name,date,current_close,SMA10,SMA20,"SHOT",lot_size,premium)
                 total_number_trade =  total_number_trade + 1
                 l=1
         if SMA20.values[-1]<SMA10.values[-1] and premium.values[-1]<90:
             if l==1:
                 close_premium = current_close.values[-1] 
-                order_id = my_job_Market(instrument,exc,"BUY",lot_size,kite)    
+                order_id = my_job_Market(instrument1,exc,"BUY",lot_size,kite)    
                 save_into_the_file(dfm,file_name,date,current_close,SMA10,SMA20,"EXIT",lot_size,premium)
                 profit = open_premium - close_premium
                 total_profit = total_profit + profit
@@ -122,7 +125,7 @@ while True:
         if SMA20.values[-1]<SMA10.values[-1] and premium.values[-1]<50 :
             if l==0: # l=0 means there is no exting postion already
                 open_premium = current_close.values[-1] 
-                order_id = my_job_Market(instrument,exc,"BUY",lot_size,kite) 
+                order_id = my_job_Market(instrument1,exc,"BUY",lot_size,kite) 
                 save_into_the_file(dfm,file_name,date,current_close,SMA10,SMA20,"BUY",lot_size,premium)
                 print("Bought contract on %s with current_close[i]=%s and  premium[i]=%s"%( date.values[-1], current_close.values[-1], premium.values[-1]))
                 total_number_trade =  total_number_trade + 1
@@ -130,7 +133,7 @@ while True:
         if SMA20.values[-1]>SMA10.values[-1] and premium.values[-1]>90:
             if l==1:
                 close_premium = current_close.values[-1] 
-                order_id = my_job_Market(instrument,exc,"SHOT",lot_size,kite)     
+                order_id = my_job_Market(instrument1,exc,"SHOT",lot_size,kite)     
                 save_into_the_file(dfm,file_name,date,current_close,SMA10,SMA20,"EXIT",lot_size,premium)
                 profit = -open_premium + close_premium
                 total_profit = total_profit + profit
@@ -138,5 +141,5 @@ while True:
             l=0
         
     end = time.time(); print("excution time:",end-start)
-    print(date.values[-1],to_date,current_close.values[-1], SMA50.values[-1])
+    #print(date.values[-1],to_date,current_close.values[-1], SMA50.values[-1])
     
